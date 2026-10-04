@@ -26,13 +26,44 @@ US_BRACKETS = [(11_925, .10), (48_475, .12), (103_350, .22), (197_300, .24),
                (250_525, .32), (626_350, .35), (INF, .37)]
 
 
-def united_states(gross: float, state_rate: float = 0.0) -> dict:
-    taxable = max(0.0, gross - 15_750)  # standard deduction, single
+# State income tax (single filer, 2025). NYC resident tax is added on top for New York.
+US_STATES = {
+    "California": {
+        "std_deduction": 5_706, "exemption_credit": 153,
+        "brackets": [(11_079, .01), (26_264, .02), (41_452, .04), (57_542, .06), (72_724, .08),
+                     (371_479, .093), (445_771, .103), (742_953, .113), (INF, .123)],
+        "mental_health": (1_000_000, .01),
+    },
+    "New York": {
+        "std_deduction": 8_000, "exemption_credit": 0,
+        "brackets": [(8_500, .04), (11_700, .045), (13_900, .0525), (80_650, .055), (215_400, .06),
+                     (1_077_550, .0685), (5_000_000, .0965), (25_000_000, .103), (INF, .109)],
+    },
+}
+NYC_BRACKETS = [(12_000, .03078), (25_000, .03762), (50_000, .03819), (INF, .03876)]
+
+
+def united_states(gross: float, state: str, nyc: bool = False) -> dict:
+    taxable = max(0.0, gross - 15_750)  # federal standard deduction, single
     fed = bracket_tax(taxable, US_BRACKETS)
     ss = min(gross, 176_100) * .062
     medicare = gross * .0145 + max(0.0, gross - 200_000) * .009
-    return _result([("Federal income tax", fed), ("State income tax (flat estimate)", gross * state_rate),
-                    ("Social Security", ss), ("Medicare", medicare)], gross)
+
+    st = US_STATES[state]
+    state_taxable = max(0.0, gross - st["std_deduction"])
+    state_tax = max(0.0, bracket_tax(state_taxable, st["brackets"]) - st["exemption_credit"])
+    if "mental_health" in st:
+        over, rate = st["mental_health"]
+        state_tax += max(0.0, state_taxable - over) * rate
+    items = [("Federal income tax", fed), (f"{state} income tax", state_tax)]
+    if nyc and state == "New York":
+        items.append(("New York City income tax", bracket_tax(state_taxable, NYC_BRACKETS)))
+    items += [("Social Security", ss), ("Medicare", medicare)]
+    if state == "California":
+        items.append(("California SDI", gross * .012))
+    else:
+        items.append(("NY disability + paid family leave", 31.20 + min(gross * .00388, 354.53)))
+    return _result(items, gross)
 
 
 # ---------- United Kingdom ----------

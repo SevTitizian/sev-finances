@@ -39,7 +39,7 @@ with st.sidebar:
         st.caption("Units of local currency per 1 CAD")
         fx = {cur: st.number_input(cur, value=rate, min_value=0.01, step=0.01, format="%.2f")
               for cur, rate in DEFAULT_FX.items()}
-        state_rate = st.slider("US state income tax (flat estimate)", 0.0, 13.0, 4.0, 0.5) / 100
+        nyc = st.checkbox("New York: include NYC resident tax")
 
 def render_canada(salary: int, province: str) -> None:
     if salary == 0:
@@ -135,4 +135,4 @@ tab_ca, tab_world = st.tabs(["Canada by province", "Compare countries"])
 with tab_ca:
     render_canada(salary, province)
 with tab_world:
-    render_world(salary, province, fx, state_rate)
+    render_world(salary, province, fx, nyc)

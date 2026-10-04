@@ -9,9 +9,10 @@ from calc import calculate
 from tax_data import PROVINCES
 
 # name -> (currency, calculator taking gross in local currency)
-def _places(state_rate: float) -> dict:
+def _places(nyc: bool) -> dict:
     places = {
-        "United States": ("USD", lambda g: ct.united_states(g, state_rate)),
+        "United States (New York)": ("USD", lambda g: ct.united_states(g, "New York", nyc)),
+        "United States (California)": ("USD", lambda g: ct.united_states(g, "California")),
         "Germany": ("EUR", ct.germany),
         "France": ("EUR", ct.france),
         "China": ("CNY", ct.china),
@@ -25,7 +26,7 @@ def money(x: float, sym: str = "$") -> str:
     return f"{sym}{x:,.0f}"
 
 
-def render_world(salary: int, province: str, fx: dict, state_rate: float) -> None:
+def render_world(salary: int, province: str, fx: dict, nyc: bool) -> None:
     if salary == 0:
         st.info("Enter a salary to compare countries.")
         return
@@ -40,7 +41,7 @@ def render_world(salary: int, province: str, fx: dict, state_rate: float) -> Non
              "Effective rate": ca["avg_rate"], "items": [("Federal income tax", ca["federal"]),
              ("Provincial income tax", ca["provincial"]), ("CPP/QPP", sum(v for k, v in ca["payroll"].items() if "PP" in k)),
              ("EI/QPIP", sum(v for k, v in ca["payroll"].items() if "PP" not in k))]}]
-    for name, (cur, fn) in _places(state_rate).items():
+    for name, (cur, fn) in _places(nyc).items():
         gross = salary * fx[cur]
         r = fn(gross)
         tax = gross - r["net"]
@@ -89,7 +90,7 @@ def render_world(salary: int, province: str, fx: dict, state_rate: float) -> Non
     with st.expander("Assumptions"):
         st.markdown("""
 - Single employee, salary income only, standard deductions, no dependants or other credits.
-- **US:** federal brackets, standard deduction, Social Security and Medicare, plus a flat state tax estimate (sidebar).
+- **US:** federal brackets and standard deduction, Social Security, Medicare, and each state's income tax and payroll disability insurance (California SDI; New York SDI/PFL). New York City resident tax is optional in the sidebar.
 - **UK:** 2025/26 rates. England, Wales and Northern Ireland share rates; Scotland has its own bands. National Insurance is the same for all four.
 - **Germany:** tax class I, no church tax, average health-insurance add-on, childless care insurance rate.
 - **France:** one tax share, employee charges approximated at 22.5% of gross.

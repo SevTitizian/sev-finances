@@ -17,7 +17,7 @@ marginal rates, and compares take-home across all 13 provinces and territories.
 ## Compare countries tab
 
 Converts your CAD salary at editable exchange rates (sidebar), applies each country's
-income tax and social contributions, and compares take-home in CAD for the United States,
+income tax and social contributions, and compares take-home in CAD for the United States (New York and California),
 England, Scotland, Wales, Northern Ireland, Germany, France and China, alongside your
 Canadian province. Rules live in `countries.py`; the tab is `world_tab.py`.
 
