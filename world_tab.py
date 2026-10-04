@@ -31,12 +31,13 @@ def money(x: float, sym: str = "$") -> str:
 # lines overlap; Wales and Northern Ireland are dashed so all three stay visible.
 COLORS = ["#e34948", "#2a78d6", "#eda100", "#2a9d8f", "#7a5ad6", "#d6459b", "#8a5a2b", "#444444",
           "#7fb800", "#00a6d6"]
+MAX_INCOME = 800_000
 DASHES = {"Wales (UK)": "dash", "Northern Ireland (UK)": "dot"}
 
 
 def income_curves(province: str, fx: dict, nyc: bool, max_income: int, salary: int) -> go.Figure:
     """Take-home (CAD) against gross income (CAD) for every country."""
-    incomes = sorted({*range(0, max_income + 1, max(1_000, max_income // 100)), salary})
+    incomes = sorted({*range(0, max_income + 1, 5_000), salary})
     series = {f"Canada ({PROVINCES[province]})": [calculate(i, province)["net"] for i in incomes]}
     for name, (cur, fn) in _places(nyc).items():
         series[name] = [fn(i * fx[cur])["net"] / fx[cur] for i in incomes]
@@ -104,8 +105,7 @@ def render_world(salary: int, province: str, fx: dict, nyc: bool) -> None:
     )
 
     st.subheader("Take-home pay across incomes")
-    max_income = st.slider("Highest income on the graph (CAD)", 50_000, 500_000, 250_000, 25_000)
-    st.plotly_chart(income_curves(province, fx, nyc, max_income, salary), width="stretch")
+    st.plotly_chart(income_curves(province, fx, nyc, MAX_INCOME, salary), width="stretch")
     st.caption("Each line is one country. Dots mark your current salary. England, Wales and Northern Ireland "
                "tax the same, so their lines sit on top of each other.")
 
