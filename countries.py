@@ -13,7 +13,7 @@ INF = float("inf")
 DEFAULT_FX = {"USD": 0.72, "GBP": 0.54, "EUR": 0.63, "CNY": 5.20}
 
 # Country -> (currency, calculator args). Calculators are defined below.
-UK_REGIONS = ["England", "Scotland", "Wales", "Northern Ireland"]
+UK_REGIONS = {"England (UK, incl. Wales & NI)": "England", "Scotland (UK)": "Scotland"}
 
 
 def _result(items: list, gross: float) -> dict:
