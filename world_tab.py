@@ -2,6 +2,7 @@
 
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import streamlit as st
 
 import countries as ct
@@ -24,6 +25,35 @@ def _places(nyc: bool) -> dict:
 
 def money(x: float, sym: str = "$") -> str:
     return f"{sym}{x:,.0f}"
+
+
+# One colour per line. England, Wales and Northern Ireland have identical tax, so their
+# lines overlap; Wales and Northern Ireland are dashed so all three stay visible.
+COLORS = ["#e34948", "#2a78d6", "#eda100", "#2a9d8f", "#7a5ad6", "#d6459b", "#8a5a2b", "#444444",
+          "#7fb800", "#00a6d6"]
+MAX_INCOME = 800_000
+DASHES = {"Wales (UK)": "dash", "Northern Ireland (UK)": "dot"}
+
+
+def income_curves(province: str, fx: dict, nyc: bool, max_income: int, salary: int) -> go.Figure:
+    """Take-home (CAD) against gross income (CAD) for every country."""
+    incomes = sorted({*range(0, max_income + 1, 5_000), salary})
+    series = {f"Canada ({PROVINCES[province]})": [calculate(i, province)["net"] for i in incomes]}
+    for name, (cur, fn) in _places(nyc).items():
+        series[name] = [fn(i * fx[cur])["net"] / fx[cur] for i in incomes]
+    fig = go.Figure()
+    for n, (name, ys) in enumerate(series.items()):
+        fig.add_trace(go.Scatter(x=incomes, y=ys, name=name, mode="lines",
+                                 line=dict(color=COLORS[n % len(COLORS)], width=3 if n == 0 else 2,
+                                           dash=DASHES.get(name, "solid"))))
+        if salary <= max_income:
+            fig.add_trace(go.Scatter(x=[salary], y=[ys[incomes.index(salary)]], mode="markers",
+                                     marker=dict(color=COLORS[n % len(COLORS)], size=9, line=dict(color="white", width=1)),
+                                     showlegend=False, hoverinfo="skip"))
+    fig.update_layout(margin=dict(t=10, b=10), hovermode="x unified", legend_title_text="",
+                      xaxis=dict(title="Gross income (CAD)", tickprefix="$"),
+                      yaxis=dict(title="Take-home pay (CAD)", tickprefix="$"))
+    return fig
 
 
 def render_world(salary: int, province: str, fx: dict, nyc: bool) -> None:
@@ -73,6 +103,11 @@ def render_world(salary: int, province: str, fx: dict, nyc: bool) -> None:
             "Effective rate": st.column_config.NumberColumn(format="percent"),
         },
     )
+
+    st.subheader("Take-home pay across incomes")
+    st.plotly_chart(income_curves(province, fx, nyc, MAX_INCOME, salary), width="stretch")
+    st.caption("Each line is one country. Dots mark your current salary. England, Wales and Northern Ireland "
+               "tax the same, so their lines sit on top of each other.")
 
     st.subheader("Breakdown for one country")
     pick = st.selectbox("Country", df["Country"].tolist(), key="world_pick")
