@@ -30,12 +30,13 @@ def money(x: float, sym: str = "$") -> str:
 # One colour per line.
 COLORS = ["#e34948", "#2a78d6", "#eda100", "#2a9d8f", "#7a5ad6", "#d6459b", "#8a5a2b", "#444444",
           "#7fb800"]
-MAX_INCOME = 800_000
+MIN_INCOME, MAX_INCOME = 20_000, 500_000
 
 
-def income_curves(province: str, fx: dict, nyc: bool, max_income: int, salary: int) -> go.Figure:
+def income_curves(province: str, fx: dict, nyc: bool, salary: int) -> go.Figure:
     """Take-home (CAD) against gross income (CAD) for every country."""
-    incomes = sorted({*range(0, max_income + 1, 5_000), salary})
+    in_range = MIN_INCOME <= salary <= MAX_INCOME
+    incomes = sorted({*range(MIN_INCOME, MAX_INCOME + 1, 5_000), *([salary] if in_range else [])})
     series = {f"Canada ({PROVINCES[province]})": [calculate(i, province)["net"] for i in incomes]}
     for name, (cur, fn) in _places(nyc).items():
         series[name] = [fn(i * fx[cur])["net"] / fx[cur] for i in incomes]
@@ -43,7 +44,7 @@ def income_curves(province: str, fx: dict, nyc: bool, max_income: int, salary: i
     for n, (name, ys) in enumerate(series.items()):
         fig.add_trace(go.Scatter(x=incomes, y=ys, name=name, mode="lines",
                                  line=dict(color=COLORS[n % len(COLORS)], width=3 if n == 0 else 2)))
-        if salary <= max_income:
+        if in_range:
             fig.add_trace(go.Scatter(x=[salary], y=[ys[incomes.index(salary)]], mode="markers",
                                      marker=dict(color=COLORS[n % len(COLORS)], size=9, line=dict(color="white", width=1)),
                                      showlegend=False, hoverinfo="skip"))
@@ -102,7 +103,7 @@ def render_world(salary: int, province: str, fx: dict, nyc: bool) -> None:
     )
 
     st.subheader("Take-home pay across incomes")
-    st.plotly_chart(income_curves(province, fx, nyc, MAX_INCOME, salary), width="stretch")
+    st.plotly_chart(income_curves(province, fx, nyc, salary), width="stretch")
     st.caption("Each line is one country. Dots mark your current salary. "
                "England, Wales and Northern Ireland share the same rates.")
 
