@@ -18,8 +18,8 @@ def _places(nyc: bool) -> dict:
         "France": ("EUR", ct.france),
         "China": ("CNY", ct.china),
     }
-    for region in ct.UK_REGIONS:
-        places[region + " (UK)"] = ("GBP", lambda g, r=region: ct.united_kingdom(g, r))
+    for label, region in ct.UK_REGIONS.items():
+        places[label] = ("GBP", lambda g, r=region: ct.united_kingdom(g, r))
     return places
 
 
@@ -27,26 +27,24 @@ def money(x: float, sym: str = "$") -> str:
     return f"{sym}{x:,.0f}"
 
 
-# One colour per line. England, Wales and Northern Ireland have identical tax, so their
-# lines overlap; Wales and Northern Ireland are dashed so all three stay visible.
+# One colour per line.
 COLORS = ["#e34948", "#2a78d6", "#eda100", "#2a9d8f", "#7a5ad6", "#d6459b", "#8a5a2b", "#444444",
-          "#7fb800", "#00a6d6"]
-MAX_INCOME = 800_000
-DASHES = {"Wales (UK)": "dash", "Northern Ireland (UK)": "dot"}
+          "#7fb800"]
+MIN_INCOME, MAX_INCOME = 20_000, 500_000
 
 
-def income_curves(province: str, fx: dict, nyc: bool, max_income: int, salary: int) -> go.Figure:
+def income_curves(province: str, fx: dict, nyc: bool, salary: int) -> go.Figure:
     """Take-home (CAD) against gross income (CAD) for every country."""
-    incomes = sorted({*range(0, max_income + 1, 5_000), salary})
+    in_range = MIN_INCOME <= salary <= MAX_INCOME
+    incomes = sorted({*range(MIN_INCOME, MAX_INCOME + 1, 5_000), *([salary] if in_range else [])})
     series = {f"Canada ({PROVINCES[province]})": [calculate(i, province)["net"] for i in incomes]}
     for name, (cur, fn) in _places(nyc).items():
         series[name] = [fn(i * fx[cur])["net"] / fx[cur] for i in incomes]
     fig = go.Figure()
     for n, (name, ys) in enumerate(series.items()):
         fig.add_trace(go.Scatter(x=incomes, y=ys, name=name, mode="lines",
-                                 line=dict(color=COLORS[n % len(COLORS)], width=3 if n == 0 else 2,
-                                           dash=DASHES.get(name, "solid"))))
-        if salary <= max_income:
+                                 line=dict(color=COLORS[n % len(COLORS)], width=3 if n == 0 else 2)))
+        if in_range:
             fig.add_trace(go.Scatter(x=[salary], y=[ys[incomes.index(salary)]], mode="markers",
                                      marker=dict(color=COLORS[n % len(COLORS)], size=9, line=dict(color="white", width=1)),
                                      showlegend=False, hoverinfo="skip"))
@@ -105,9 +103,9 @@ def render_world(salary: int, province: str, fx: dict, nyc: bool) -> None:
     )
 
     st.subheader("Take-home pay across incomes")
-    st.plotly_chart(income_curves(province, fx, nyc, MAX_INCOME, salary), width="stretch")
-    st.caption("Each line is one country. Dots mark your current salary. England, Wales and Northern Ireland "
-               "tax the same, so their lines sit on top of each other.")
+    st.plotly_chart(income_curves(province, fx, nyc, salary), width="stretch")
+    st.caption("Each line is one country. Dots mark your current salary. "
+               "England, Wales and Northern Ireland share the same rates.")
 
     st.subheader("Breakdown for one country")
     pick = st.selectbox("Country", df["Country"].tolist(), key="world_pick")
@@ -126,7 +124,7 @@ def render_world(salary: int, province: str, fx: dict, nyc: bool) -> None:
         st.markdown("""
 - Single employee, salary income only, standard deductions, no dependants or other credits.
 - **US:** federal brackets and standard deduction, Social Security, Medicare, and each state's income tax and payroll disability insurance (California SDI; New York SDI/PFL). New York City resident tax is optional in the sidebar.
-- **UK:** 2025/26 rates. England, Wales and Northern Ireland share rates; Scotland has its own bands. National Insurance is the same for all four.
+- **UK:** 2025/26 rates. "England" covers England, Wales and Northern Ireland, which share the same rates; Scotland has its own income tax bands. National Insurance is the same everywhere.
 - **Germany:** tax class I, no church tax, average health-insurance add-on, childless care insurance rate.
 - **France:** one tax share, employee charges approximated at 22.5% of gross.
 - **China:** social insurance and housing fund at roughly Shanghai-style rates (housing fund 7%), 60,000 CNY annual threshold, no special deductions.
